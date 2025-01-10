@@ -45,10 +45,7 @@ func Read() (*Config, error) {
 	return &conf, nil
 }
 
-// currently just sets a constant val, will be updated to set a dynamic user val
-func (c *Config) SetUser() error {
-	username := "etho"
-
+func (c *Config) SetUser(username string) error {
 	c.Current_user = username
 
 	confEncoded, err := json.Marshal(c)

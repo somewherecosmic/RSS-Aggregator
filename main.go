@@ -13,7 +13,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	conf.SetUser()
+	conf.SetUser("etho")
 	newConf, err := config.Read()
 	if err != nil {
 		log.Fatal(err)
