@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -73,6 +74,20 @@ func HandlerRegister(s *State, cmd Command) error {
 	s.Conf.Current_user = user.Name
 	s.Conf.SetUser(user.Name)
 	fmt.Printf("New user created: %s, Created_at: %s\n", user.Name, user.CreatedAt.Time)
+	return nil
+}
+
+func HandlerReset(s *State, cmd Command) error {
+	if len(cmd.Args) > 1 {
+		return errors.New("too many arguments given - reset expects 0 arguments")
+	}
+
+	if err := s.Db.ClearUserTable(context.Background()); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	fmt.Println("User table reset - all records deleted")
 	return nil
 }
 

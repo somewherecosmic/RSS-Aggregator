@@ -15,3 +15,6 @@ WHERE id = $1;
 -- name: FindUserByName :one
 SELECT * FROM users
 WHERE name = $1;
+
+-- name: ClearUserTable :exec
+DELETE FROM users;
