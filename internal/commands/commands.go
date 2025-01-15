@@ -91,6 +91,26 @@ func HandlerReset(s *State, cmd Command) error {
 	return nil
 }
 
+func HandlerUsers(s *State, cmd Command) error {
+	if len(cmd.Args) > 1 {
+		return errors.New("too many arguments given, users expects 0")
+	}
+
+	users, err := s.Db.GetUsers(context.Background())
+	if err != nil {
+		return err
+	}
+	for _, user := range users {
+		current := ""
+		if user.Name == s.Conf.Current_user {
+			current = "(current)"
+		}
+		fmt.Printf("* %s "+current+"\n", user.Name)
+	}
+
+	return nil
+}
+
 func (c *Commands) Register(name string, f func(*State, Command) error) error {
 	c.ValidCommands[name] = f
 	return nil
