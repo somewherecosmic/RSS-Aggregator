@@ -1,11 +1,15 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"os"
 	"somewherecosmic/aggregator/internal/commands"
 	"somewherecosmic/aggregator/internal/config"
+	"somewherecosmic/aggregator/internal/database"
+
+	_ "github.com/lib/pq"
 )
 
 func main() {
@@ -22,6 +26,14 @@ func main() {
 	}
 
 	commandRegistry.Register("login", commands.HandlerLogin)
+	commandRegistry.Register("register", commands.HandlerRegister)
+
+	db, err := sql.Open("postgres", conf.Db_url)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	state.Db = database.New(db)
 
 	userArgs := os.Args
 	if len(userArgs) < 2 {
@@ -36,4 +48,5 @@ func main() {
 	if err := commandRegistry.Run(&state, issuedCommand); err != nil {
 		fmt.Println(err)
 	}
+
 }
