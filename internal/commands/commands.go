@@ -9,11 +9,15 @@ import (
 	"os"
 	"somewherecosmic/aggregator/internal/config"
 	"somewherecosmic/aggregator/internal/database"
+	"somewherecosmic/aggregator/internal/rss"
 	"time"
 
 	"github.com/google/uuid"
 )
 
+/*
+Structs + Struct methods - State, Command, Commands
+*/
 type State struct {
 	Db   *database.Queries
 	Conf *config.Config
@@ -27,6 +31,24 @@ type Command struct {
 type Commands struct {
 	ValidCommands map[string]func(*State, Command) error
 }
+
+func (c *Commands) Register(name string, f func(*State, Command) error) error {
+	c.ValidCommands[name] = f
+	return nil
+}
+
+func (c *Commands) Run(s *State, cmd Command) error {
+	err := c.ValidCommands[cmd.Name](s, cmd)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+/*
+	Command handler functions
+*/
 
 func HandlerLogin(s *State, cmd Command) error {
 	if len(cmd.Args) == 0 {
@@ -111,15 +133,71 @@ func HandlerUsers(s *State, cmd Command) error {
 	return nil
 }
 
-func (c *Commands) Register(name string, f func(*State, Command) error) error {
-	c.ValidCommands[name] = f
+func HandlerAddFeed(s *State, cmd Command) error {
+	if len(cmd.Args) != 2 {
+		return errors.New("addfeed expects two arguments: name, url")
+	}
+
+	user, err := s.Db.FindUserByName(context.Background(), s.Conf.Current_user)
+	if err != nil {
+		return err
+	}
+
+	feed, err := s.Db.CreateFeed(context.Background(), database.CreateFeedParams{
+		ID: uuid.New(),
+		CreatedAt: sql.NullTime{
+			Time:  time.Now(),
+			Valid: true,
+		},
+		UpdatedAt: sql.NullTime{
+			Time:  time.Now(),
+			Valid: true,
+		},
+		Name: cmd.Args[0],
+		Url:  cmd.Args[1],
+		UserID: uuid.NullUUID{
+			UUID:  user.ID,
+			Valid: true,
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(feed)
+
 	return nil
 }
 
-func (c *Commands) Run(s *State, cmd Command) error {
-	err := c.ValidCommands[cmd.Name](s, cmd)
+func HandlerFeed(s *State, cmd Command) error {
+	if len(cmd.Args) > 1 {
+		return errors.New("too many arguments provided - agg expects 0")
+	}
+
+	feed, err := rss.FetchFeed(context.Background(), "https://www.wagslane.dev/index.xml")
 	if err != nil {
 		return err
+	}
+
+	// feed.Stringify()
+	fmt.Println(feed)
+	return nil
+}
+
+func HandlerFeeds(s *State, cmd Command) error {
+	if len(cmd.Args) != 0 {
+		return fmt.Errorf("usage: %v", cmd.Name)
+	}
+
+	feeds, err := s.Db.GetAllFeeds(context.Background())
+	if err != nil {
+		return err
+	}
+
+	for _, feed := range feeds {
+		fmt.Printf("Name: %s\n", feed.Name)
+		fmt.Printf("URL: %s\n", feed.Url)
+		fmt.Printf("Created By: %s\n", feed.User)
 	}
 
 	return nil

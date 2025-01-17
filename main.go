@@ -29,11 +29,15 @@ func main() {
 	commandRegistry.Register("register", commands.HandlerRegister)
 	commandRegistry.Register("reset", commands.HandlerReset)
 	commandRegistry.Register("users", commands.HandlerUsers)
+	commandRegistry.Register("agg", commands.HandlerFeed)
+	commandRegistry.Register("addfeed", commands.HandlerAddFeed)
+	commandRegistry.Register("feeds", commands.HandlerFeeds)
 
 	db, err := sql.Open("postgres", conf.Db_url)
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer db.Close()
 
 	state.Db = database.New(db)
 
@@ -49,6 +53,6 @@ func main() {
 
 	if err := commandRegistry.Run(&state, issuedCommand); err != nil {
 		fmt.Println(err)
+		os.Exit(1)
 	}
-
 }
