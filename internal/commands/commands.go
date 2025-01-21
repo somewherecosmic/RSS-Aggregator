@@ -257,9 +257,24 @@ func HandlerFollow(s *State, cmd Command, user database.User) error {
 	return nil
 }
 
-type HandlerFunc func(s *State, cmd Command) error
+func HandlerUnfollow(s *State, cmd Command, user database.User) error {
+	if len(cmd.Args) != 1 {
+		return fmt.Errorf("usage: %s <url>", cmd.Name)
+	}
 
-type HandlerFuncLoggedIn func(s *State, cmd Command, user database.User) error
+	if err := s.Db.UnfollowFeed(context.Background(), database.UnfollowFeedParams{
+		UserID: user.ID,
+		Url:    cmd.Args[0],
+	}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// type HandlerFunc func(s *State, cmd Command) error
+
+// type HandlerFuncLoggedIn func(s *State, cmd Command, user database.User) error
 
 func MiddlewareLoggedIn(handler func(s *State, cmd Command, user database.User) error) func(*State, Command) error {
 
