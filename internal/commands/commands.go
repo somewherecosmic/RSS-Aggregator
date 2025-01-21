@@ -141,14 +141,9 @@ func HandlerUsers(s *State, cmd Command) error {
 	return nil
 }
 
-func HandlerAddFeed(s *State, cmd Command) error {
+func HandlerAddFeed(s *State, cmd Command, user database.User) error {
 	if len(cmd.Args) != 2 {
 		return errors.New("addfeed expects two arguments: name, url")
-	}
-
-	user, err := s.Db.FindUserByName(context.Background(), s.Conf.Current_user)
-	if err != nil {
-		return err
 	}
 
 	feed, err := s.Db.CreateFeed(context.Background(), database.CreateFeedParams{
@@ -172,7 +167,7 @@ func HandlerAddFeed(s *State, cmd Command) error {
 		return err
 	}
 
-	HandlerFollow(s, Command{"follow", []string{feed.Url}})
+	HandlerFollow(s, Command{"follow", []string{feed.Url}}, user)
 
 	return nil
 }
@@ -211,14 +206,9 @@ func HandlerFeeds(s *State, cmd Command) error {
 	return nil
 }
 
-func HandlerFollowing(s *State, cmd Command) error {
+func HandlerFollowing(s *State, cmd Command, user database.User) error {
 	if len(cmd.Args) != 0 {
 		return fmt.Errorf("%s takes no arguments", cmd.Name)
-	}
-
-	user, err := s.Db.FindUserByName(context.Background(), s.Conf.Current_user)
-	if err != nil {
-		return err
 	}
 
 	followedFeeds, err := s.Db.GetFeedFollowsForUser(context.Background(), user.ID)
@@ -236,7 +226,7 @@ func HandlerFollowing(s *State, cmd Command) error {
 // takes a single url
 // creates a new feed follow record for a user
 
-func HandlerFollow(s *State, cmd Command) error {
+func HandlerFollow(s *State, cmd Command, user database.User) error {
 	// fmt.Println("Before user access")
 	// fmt.Printf("User ID: %v\n", s.User.Name)
 	// fmt.Println("After user access")
@@ -245,11 +235,6 @@ func HandlerFollow(s *State, cmd Command) error {
 	}
 
 	feed, err := s.Db.GetFeedByUrl(context.Background(), cmd.Args[0])
-	if err != nil {
-		return err
-	}
-
-	user, err := s.Db.FindUserByName(context.Background(), s.Conf.Current_user)
 	if err != nil {
 		return err
 	}
@@ -270,4 +255,20 @@ func HandlerFollow(s *State, cmd Command) error {
 
 	fmt.Printf("%s has just followed the feed %s\n", feedFollow.UserName, feedFollow.FeedName)
 	return nil
+}
+
+type HandlerFunc func(s *State, cmd Command) error
+
+type HandlerFuncLoggedIn func(s *State, cmd Command, user database.User) error
+
+func MiddlewareLoggedIn(handler func(s *State, cmd Command, user database.User) error) func(*State, Command) error {
+
+	return func(s *State, cmd Command) error {
+		user, err := s.Db.FindUserByName(context.Background(), s.Conf.Current_user)
+		if err != nil {
+			return err
+		}
+
+		return handler(s, cmd, user)
+	}
 }
