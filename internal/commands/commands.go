@@ -21,16 +21,15 @@ Structs + Struct methods - State, Command, Commands
 type State struct {
 	Db   *database.Queries
 	Conf *config.Config
-	User *database.User
 }
 
-func (s *State) setUser(user *database.User) error {
-	if user == nil {
-		return errors.New("User object passed is nil")
-	}
-	s.User = user
-	return nil
-}
+// func (s *State) setUser(user *database.User) error {
+// 	if user == nil {
+// 		return errors.New("user object passed is nil")
+// 	}
+// 	s.User = user
+// 	return nil
+// }
 
 type Command struct {
 	Name string
@@ -103,8 +102,8 @@ func HandlerRegister(s *State, cmd Command) error {
 	}
 
 	s.Conf.SetUser(user.Name)
-	s.setUser(&user)
 	fmt.Printf("New user created: %s, Created_at: %s\n", user.Name, user.CreatedAt.Time)
+
 	return nil
 }
 
@@ -173,7 +172,7 @@ func HandlerAddFeed(s *State, cmd Command) error {
 		return err
 	}
 
-	fmt.Println(feed)
+	HandlerFollow(s, Command{"follow", []string{feed.Url}})
 
 	return nil
 }
@@ -212,12 +211,37 @@ func HandlerFeeds(s *State, cmd Command) error {
 	return nil
 }
 
+func HandlerFollowing(s *State, cmd Command) error {
+	if len(cmd.Args) != 0 {
+		return fmt.Errorf("%s takes no arguments", cmd.Name)
+	}
+
+	user, err := s.Db.FindUserByName(context.Background(), s.Conf.Current_user)
+	if err != nil {
+		return err
+	}
+
+	followedFeeds, err := s.Db.GetFeedFollowsForUser(context.Background(), user.ID)
+	if err != nil {
+		return err
+	}
+
+	for _, feed := range followedFeeds {
+		fmt.Println(feed.FeedName)
+	}
+
+	return nil
+}
+
 // takes a single url
 // creates a new feed follow record for a user
 
 func HandlerFollow(s *State, cmd Command) error {
+	// fmt.Println("Before user access")
+	// fmt.Printf("User ID: %v\n", s.User.Name)
+	// fmt.Println("After user access")
 	if len(cmd.Args) != 1 {
-		return fmt.Errorf("Usage: %s <feed_url>", cmd.Name)
+		return fmt.Errorf("usage: %s <feed_url>", cmd.Name)
 	}
 
 	feed, err := s.Db.GetFeedByUrl(context.Background(), cmd.Args[0])
@@ -225,11 +249,18 @@ func HandlerFollow(s *State, cmd Command) error {
 		return err
 	}
 
+	user, err := s.Db.FindUserByName(context.Background(), s.Conf.Current_user)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Feed ID: %s\n", feed.ID)
+
 	feedFollow, err := s.Db.CreateFeedFollow(context.Background(), database.CreateFeedFollowParams{
 		ID:        uuid.New(),
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
-		UserID:    s.User.ID,
+		UserID:    user.ID,
 		FeedID:    feed.ID,
 	})
 
