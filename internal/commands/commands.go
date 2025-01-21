@@ -21,6 +21,15 @@ Structs + Struct methods - State, Command, Commands
 type State struct {
 	Db   *database.Queries
 	Conf *config.Config
+	User *database.User
+}
+
+func (s *State) setUser(user *database.User) error {
+	if user == nil {
+		return errors.New("User object passed is nil")
+	}
+	s.User = user
+	return nil
 }
 
 type Command struct {
@@ -93,8 +102,8 @@ func HandlerRegister(s *State, cmd Command) error {
 		os.Exit(1)
 	}
 
-	s.Conf.Current_user = user.Name
 	s.Conf.SetUser(user.Name)
+	s.setUser(&user)
 	fmt.Printf("New user created: %s, Created_at: %s\n", user.Name, user.CreatedAt.Time)
 	return nil
 }
@@ -200,5 +209,34 @@ func HandlerFeeds(s *State, cmd Command) error {
 		fmt.Printf("Created By: %s\n", feed.User)
 	}
 
+	return nil
+}
+
+// takes a single url
+// creates a new feed follow record for a user
+
+func HandlerFollow(s *State, cmd Command) error {
+	if len(cmd.Args) != 1 {
+		return fmt.Errorf("Usage: %s <feed_url>", cmd.Name)
+	}
+
+	feed, err := s.Db.GetFeedByUrl(context.Background(), cmd.Args[0])
+	if err != nil {
+		return err
+	}
+
+	feedFollow, err := s.Db.CreateFeedFollow(context.Background(), database.CreateFeedFollowParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		UserID:    s.User.ID,
+		FeedID:    feed.ID,
+	})
+
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s has just followed the feed %s\n", feedFollow.UserName, feedFollow.FeedName)
 	return nil
 }
