@@ -18,8 +18,8 @@ type RSSFeed struct {
 	} `xml:"channel"`
 }
 
-func (feed *RSSFeed) Stringify() {
-	fmt.Printf("Title: %s\nLink: %s\nDescription: %s\nItems: %s\n", feed.Channel.Title, feed.Channel.Link, feed.Channel.Description, feed.Channel.Item)
+func (feed *RSSFeed) String() string {
+	return fmt.Sprintf("Title: %s\nLink: %s\nDescription: %s\nItems: %s\n", feed.Channel.Title, feed.Channel.Link, feed.Channel.Description, feed.Channel.Item)
 }
 
 // func (feed *RSSFeed) decodeEscapedChars() {
@@ -38,8 +38,8 @@ type RSSItem struct {
 	PubDate     string `xml:"pubDate"`
 }
 
-func (item *RSSItem) Stringify() {
-	fmt.Printf("Title: %s\n Link: %s\n, Description: %s\n, PubDate: %s\n", item.Title, item.Link, item.Description, item.PubDate)
+func (item *RSSItem) String() string {
+	return fmt.Sprintf("Title: %s\n Link: %s\n, Description: %s\n, PubDate: %s\n", item.Title, item.Link, item.Description, item.PubDate)
 }
 
 // Fetch feed from url

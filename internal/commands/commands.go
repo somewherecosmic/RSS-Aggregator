@@ -147,17 +147,12 @@ func HandlerAddFeed(s *State, cmd Command, user database.User) error {
 	}
 
 	feed, err := s.Db.CreateFeed(context.Background(), database.CreateFeedParams{
-		ID: uuid.New(),
-		CreatedAt: sql.NullTime{
-			Time:  time.Now(),
-			Valid: true,
-		},
-		UpdatedAt: sql.NullTime{
-			Time:  time.Now(),
-			Valid: true,
-		},
-		Name: cmd.Args[0],
-		Url:  cmd.Args[1],
+		ID:            uuid.New(),
+		CreatedAt:     time.Now(),
+		LastFetchedAt: sql.NullTime{Valid: false},
+		UpdatedAt:     time.Now(),
+		Name:          cmd.Args[0],
+		Url:           cmd.Args[1],
 		UserID: uuid.NullUUID{
 			UUID:  user.ID,
 			Valid: true,
@@ -172,19 +167,47 @@ func HandlerAddFeed(s *State, cmd Command, user database.User) error {
 	return nil
 }
 
-func HandlerFeed(s *State, cmd Command) error {
-	if len(cmd.Args) > 1 {
-		return errors.New("too many arguments provided - agg expects 0")
+func HandlerAgg(s *State, cmd Command) error {
+	if len(cmd.Args) != 1 {
+		return fmt.Errorf("usage: %s <time_between_requests>", cmd.Name)
 	}
 
-	feed, err := rss.FetchFeed(context.Background(), "https://www.wagslane.dev/index.xml")
+	timeBetweenReqs, err := time.ParseDuration(cmd.Args[0])
 	if err != nil {
 		return err
 	}
 
-	// feed.Stringify()
-	fmt.Println(feed)
-	return nil
+	fmt.Printf("Collecting feeds every %v\ns", timeBetweenReqs)
+
+	ticker := time.NewTicker(timeBetweenReqs)
+
+	for ; ; <-ticker.C {
+		scrapeFeeds(s)
+	}
+}
+
+func scrapeFeeds(s *State) {
+	nextFeed, err := s.Db.GetNextFeedToFetch(context.Background())
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err := s.Db.MarkFeedFetched(context.Background(), database.MarkFeedFetchedParams{
+		LastFetchedAt: sql.NullTime{Time: time.Now(), Valid: true},
+		UpdatedAt:     time.Now(),
+		ID:            nextFeed.ID,
+	}); err != nil {
+		log.Fatal(err)
+	}
+
+	feed, err := rss.FetchFeed(context.Background(), nextFeed.Url)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, item := range feed.Channel.Item {
+		fmt.Println(item.Title)
+	}
 }
 
 func HandlerFeeds(s *State, cmd Command) error {

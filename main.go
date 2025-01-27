@@ -29,7 +29,7 @@ func main() {
 	commandRegistry.Register("register", commands.HandlerRegister)
 	commandRegistry.Register("reset", commands.HandlerReset)
 	commandRegistry.Register("users", commands.HandlerUsers)
-	commandRegistry.Register("agg", commands.HandlerFeed)
+	commandRegistry.Register("agg", commands.HandlerAgg)
 	commandRegistry.Register("addfeed", commands.MiddlewareLoggedIn(commands.HandlerAddFeed))
 	commandRegistry.Register("feeds", commands.HandlerFeeds)
 	commandRegistry.Register("follow", commands.MiddlewareLoggedIn(commands.HandlerFollow))
