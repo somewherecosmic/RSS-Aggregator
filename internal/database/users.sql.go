@@ -73,6 +73,53 @@ func (q *Queries) FindUserByName(ctx context.Context, name string) (User, error)
 	return i, err
 }
 
+const getPostsForUser = `-- name: GetPostsForUser :many
+SELECT posts.id, posts.created_at, posts.updated_at, posts.title, posts.url, posts.description, posts.published_at, posts.feed_id FROM users
+INNER JOIN feeds
+ON feeds.user_id = users.id
+INNER JOIN posts
+ON posts.feed_id = feeds.id
+WHERE users.id = $1
+LIMIT $2
+`
+
+type GetPostsForUserParams struct {
+	ID    uuid.UUID
+	Limit int32
+}
+
+func (q *Queries) GetPostsForUser(ctx context.Context, arg GetPostsForUserParams) ([]Post, error) {
+	rows, err := q.db.QueryContext(ctx, getPostsForUser, arg.ID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Post
+	for rows.Next() {
+		var i Post
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Title,
+			&i.Url,
+			&i.Description,
+			&i.PublishedAt,
+			&i.FeedID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getUser = `-- name: GetUser :one
 SELECT id, created_at, updated_at, name FROM users
 WHERE id = $1

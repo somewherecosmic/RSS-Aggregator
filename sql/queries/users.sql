@@ -22,3 +22,11 @@ WHERE name = $1;
 -- name: ClearUserTable :exec
 DELETE FROM users;
 
+-- name: GetPostsForUser :many
+SELECT posts.* FROM users
+INNER JOIN feeds
+ON feeds.user_id = users.id
+INNER JOIN posts
+ON posts.feed_id = feeds.id
+WHERE users.id = $1
+LIMIT $2;

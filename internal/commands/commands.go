@@ -10,6 +10,7 @@ import (
 	"somewherecosmic/aggregator/internal/config"
 	"somewherecosmic/aggregator/internal/database"
 	"somewherecosmic/aggregator/internal/rss"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -206,7 +207,25 @@ func scrapeFeeds(s *State) {
 	}
 
 	for _, item := range feed.Channel.Item {
-		fmt.Println(item.Title)
+		PubDate, err := time.Parse(time.DateTime, item.PubDate)
+		if err != nil {
+			fmt.Println(fmt.Errorf("failed to parse publication date for %v", item.Title))
+		}
+		_, err = s.Db.CreatePost(context.Background(), database.CreatePostParams{
+			ID:          uuid.New(),
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+			Url:         item.Link,
+			Title:       item.Title,
+			Description: item.Description,
+			PublishedAt: PubDate,
+			FeedID:      nextFeed.ID,
+		})
+
+		if err != nil {
+			fmt.Println(err)
+		}
+
 	}
 }
 
@@ -290,6 +309,38 @@ func HandlerUnfollow(s *State, cmd Command, user database.User) error {
 		Url:    cmd.Args[0],
 	}); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func HandlerBrowse(s *State, cmd Command, user database.User) error {
+	if len(cmd.Args) > 1 {
+		return fmt.Errorf("usage: browse <limit:optional>")
+	}
+
+	var limit int64
+	var err error
+
+	if len(cmd.Args) == 0 {
+		limit = 2
+	} else {
+		limit, err = strconv.ParseInt(cmd.Args[0], 10, 32)
+		if err != nil {
+			return err
+		}
+	}
+
+	posts, err := s.Db.GetPostsForUser(context.Background(), database.GetPostsForUserParams{
+		ID:    user.ID,
+		Limit: int32(limit),
+	})
+	if err != nil {
+		return err
+	}
+
+	for _, post := range posts {
+		fmt.Println(post)
 	}
 
 	return nil
